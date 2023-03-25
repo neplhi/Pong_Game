@@ -1,41 +1,33 @@
-cmake_minimum_required(VERSION 3.11) # FetchContent is available in 3.11+
-project(Raylibtest)
+cmake_minimum_required(VERSION 3.0)
+project(raylib)
 
-# Generate compile_commands.json
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# Directory for easier includes
+# Anywhere you see include(...) you can check <root>/cmake for that file
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-# Dependencies
-find_package(raylib 4.2.0 QUIET) # QUIET or REQUIRED
-if (NOT raylib_FOUND) # If there's none, fetch and build raylib
-    include(FetchContent)
-    FetchContent_Declare(
-            raylib
-            URL https://github.com/raysan5/raylib/archive/refs/tags/4.0.0.tar.gz
-    )
-    FetchContent_GetProperties(raylib)
-    if (NOT raylib_POPULATED) # Have we downloaded raylib yet?
-        set(FETCHCONTENT_QUIET NO)
-        FetchContent_Populate(raylib)
-        set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE) # don't build the supplied examples
-        add_subdirectory(${raylib_SOURCE_DIR} ${raylib_BINARY_DIR})
-    endif()
+# RAYLIB_IS_MAIN determines whether the project is being used from root
+# or if it is added as a dependency (through add_subdirectory for example).
+if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
+  set(RAYLIB_IS_MAIN TRUE)
+else()
+  set(RAYLIB_IS_MAIN FALSE)
 endif()
 
-# Our Project
+# Sets compiler flags and language standard
+include(CompilerFlags)
 
-add_executable(${PROJECT_NAME} main.cpp)
-#set(raylib_VERBOSE 1)
-target_link_libraries(${PROJECT_NAME} raylib)
+# Registers build options that are exposed to cmake
+include(CMakeOptions.txt)
 
-# Web Configurations
-if (${PLATFORM} STREQUAL "Web")
-    # Tell Emscripten to build an example.html file.
-    set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html")
+# Enforces a few environment and compiler configurations
+include(BuildOptions)
+
+# Main sources directory (the second parameter sets the output directory name to raylib)
+add_subdirectory(src raylib)
+
+if (${BUILD_EXAMPLES})
+  MESSAGE(STATUS "Building examples is enabled")
+  add_subdirectory(examples)
 endif()
 
-# Checks if OSX and links appropriate frameworks (Only required on MacOS)
-if (APPLE)
-    target_link_libraries(${PROJECT_NAME} "-framework IOKit")
-    target_link_libraries(${PROJECT_NAME} "-framework Cocoa")
-    target_link_libraries(${PROJECT_NAME} "-framework OpenGL")
-endif()
+enable_testing()
